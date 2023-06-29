@@ -19,3 +19,9 @@
 ## Questions
 
 ### Who specifically within the term "healthcare professionals" will be utilizing this? When would they turn to this product? What exactly would they hope to gain from this product? Where would they gain access to this product? 
+
+## Next Steps
+
+* Lit review on SIR/SEIR/SIRS for flu/Covid-19 modeling.
+* Investigate tkinter further as well as other GUI programs
+* Once I've decided on SIR/SEIR/SIRS find best numerical method to solve to reduce erro=
