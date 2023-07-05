@@ -20,7 +20,7 @@
 
 ### I have also seen plenty of publications that use 4th order Runge Kutta method.
 
-### My idea as of 7/5 is to create this for basic SIR model then, if time allows, extend to SEIR or SIRS model as this seems a logical way to tackle this with the given time. 
+### My idea as of 7/5/23 is to create this for basic SIR model then, if time allows, extend to SEIR/SIRS/with deaths model as this seems a logical way to tackle this with the given time. 
 
 ## Questions
 
