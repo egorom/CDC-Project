@@ -12,9 +12,15 @@
 
 ## Methodology
 
-### First, I have been exploring the creation of a GUI with tkinter. I will explore a few other packages including pygame (based off Harrison's recommendation.) 
+### First, I have been exploring the creation of a GUI with tkinter. I will explore a few other packages including pygame (based off Harrison's recommendation.) Tkinter will require integration with numpy to solve the ODEs as well as MatPlotLib to create the graphical output.
 
-### From tkinter, I have been able to crate a window with sliders that can be moed for three variables, a calculate button that leads to a separate window, and a quit option. Ideally, I would like an entry box that is linked to the slider so someone coudl choose which to use since sliders can be difficult to operate at times. If using this package for the entire goal, I would need to store the slider values, solve the ODEs based off the values, and output a graph from the solutions. Finally, I could make the UI more appealing to the user. I believe the idea of linking the slider and the entry box is beyond the capabilities of this package or perhaps just beyond my knowledge at the moment. 
+### From tkinter, I have been able to crate a window with sliders that can be moed for three variables, a calculate button that leads to a separate window, and a quit option. Ideally, I would like an entry box that is linked to the slider so someone coudl choose which to use since sliders can be difficult to operate at times. If using this package for the entire goal, I would need to store the slider values, solve the ODEs based off the values, and output a graph from the solutions. Finally, I could make the UI more appealing to the user. I believe the idea of linking the slider and the entry box is beyond the capabilities of this package or perhaps just beyond my knowledge at the moment. I would like to build something nice from tkinter to compare to another GUI. I believe I will have enough time to compare.
+
+### From some exploration, PyQTGraph or PyQT may be the way to go with another framework to create the GUI.
+
+### I have also seen plenty of publications that use 4th order Runge Kutta method.
+
+### My idea as of 7/5 is to create this for basic SIR model then, if time allows, extend to SEIR or SIRS model as this seems a logical way to tackle this with the given time. 
 
 ## Questions
 
@@ -22,6 +28,8 @@
 
 ## Next Steps
 
-* Lit review on SIR/SEIR/SIRS for flu/Covid-19 modeling.
-* Investigate tkinter further as well as other GUI programs
-* Once I've decided on SIR/SEIR/SIRS find best numerical method to solve to reduce erro=
+* ~~Lit review on SIR/SEIR/SIRS for flu/Covid-19 modeling.~~
+* Investigate tkinter further as well as PyQTGraph
+* ~~Once I've decided on SIR/SEIR/SIRS find best numerical method to solve to reduce error~~
+* Compile a list of pubs that use Runge Kutta method/any other method to solve SIR model.
+* Write a small script to solve simple SIR model with given parameters with 4th order Runge Kutta method.
