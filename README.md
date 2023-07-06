@@ -29,7 +29,9 @@
 ## Next Steps
 
 * ~~Lit review on SIR/SEIR/SIRS for flu/Covid-19 modeling.~~
-* Investigate tkinter further as well as PyQTGraph
+* Investigate tkinter further 
 * ~~Once I've decided on SIR/SEIR/SIRS find best numerical method to solve to reduce error~~
-* Compile a list of pubs that use Runge Kutta method/any other method to solve SIR model.
-* Write a small script to solve simple SIR model with given parameters with 4th order Runge Kutta method.
+* ~~Compile a list of pubs that use Runge Kutta method/any other method to solve SIR model~~
+* ~~Write a small script to solve simple SIR model with given parameters with 4th order Runge Kutta method~~
+* Find a baseline example to check Runge-Kutta code
+* Explore PyQTGraph
