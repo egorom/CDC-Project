@@ -7,7 +7,7 @@
 
 ## Goal
 
-### Create a front-end GUI where users can interact with parameter values for the chosen SIR model. The ODE will be solved numerically on the back-end from these paramter values. From the solution, a graph is output for the user to gain knowledge from regarding the disease.
+### Create a front-end GUI where users can interact with parameter values for the chosen SIR model. The ODE will be solved numerically on the back-end from these parameter values. From the solution, a graph is output for the user to gain knowledge from regarding the disease.
 
 
 ## Methodology
@@ -29,9 +29,9 @@
 ## Next Steps
 
 * ~~Lit review on SIR/SEIR/SIRS for flu/Covid-19 modeling.~~
-* Investigate tkinter further 
+* ~~Investigate tkinter further~~
 * ~~Once I've decided on SIR/SEIR/SIRS find best numerical method to solve to reduce error~~
 * ~~Compile a list of pubs that use Runge Kutta method/any other method to solve SIR model~~
 * ~~Write a small script to solve simple SIR model with given parameters with 4th order Runge Kutta method~~
-* Find a baseline example to check Runge-Kutta code
-* Explore PyQTGraph
+* ~~Find a baseline example to check Runge-Kutta code~~
+* ~~Explore PyQTGraph~~
