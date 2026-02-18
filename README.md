@@ -1,37 +1,157 @@
-# CDC-Project
+# Numerical Epidemiology Framework
+
+An epidemiological modeling framework using a verified fourth-order Runge–Kutta (RK4) solver.
+
+This project demonstrates:
+
+- High-order numerical ODE integration
+- SIR and SEIR epidemic modeling
+- Sensitivity and convergence analysis
+- Linear stability analysis
+- Phase portrait visualization
+- Vaccination modeling
+- Unit testing and production-grade architecture
+
+---
+
+## Mathematical Models
+
+### SIR Model
+
+dS/dt = -β S I / N - v S
+
+dI/dt = β S I / N - γ I
+
+dR/dt = γ I + v S
+
+Where:
+- β = infection rate
+- γ = recovery rate
+- v = vaccination rate
+- R₀ = β / γ
+
+---
+
+### SEIR Model
+
+dS/dt = -β S I / N
+dE/dt = β S I / N - σ E
+dI/dt = σ E - γ I
+dR/dt = γ I
+
+---
+
+## Numerical Method
+
+The system is solved using a fourth-order Runge–Kutta (RK4) integrator:
+
+y_{n+1} = y_n + (1/6)*(k1 + 2*k2 + 2*k3 + k4)
 
 
-## Background
+A convergence study verifies fourth-order accuracy.
 
-### Many infectious diseases like Covid-19 can be modeled using an SIR (susceptible, infected, recovered) model or one of its variants. The models in this project are typically a set of 3 or 4 ODEs that must be solved numerically.
+---
 
-## Goal
+## Features
 
-### Create a front-end GUI where users can interact with parameter values for the chosen SIR model. The ODE will be solved numerically on the back-end from these parameter values. From the solution, a graph is output for the user to gain knowledge from regarding the disease.
+### Verified Numerical Accuracy
+- Log-log convergence study
+- Observed order ≈ 4
+
+### Sensitivity Analysis
+- Peak infection vs β
+- Time-to-peak analysis
+
+### R₀ Analysis
+- Epidemic threshold behavior
+- Final epidemic size vs R₀
+
+### Stability Study
+- Time step sensitivity
+- Numerical stability exploration
+
+### Phase Portraits
+- S vs I trajectory visualization
+
+### Linear Stability
+- Jacobian evaluation
+- Eigenvalue analysis
+
+### Vaccination Modeling
+- Optional vaccination term in SIR
+
+---
+
+## Project Structure
+
+```
+core/          # Numerical solvers and model definitions
+studies/       # Reproducible numerical experiments
+tests/         # Unit tests
+sir_gui.py     # Interactive GUI
+```
+
+---
 
 
-## Methodology
+## Running the Studies
 
-### First, I have been exploring the creation of a GUI with tkinter. I will explore a few other packages including pygame (based off Harrison's recommendation). Tkinter will require integration with numpy to solve the ODEs as well as MatPlotLib to create the graphical output.
+```
+python studies/convergence_study.py
+python studies/sensitivity_analysis.py
+python studies/r0_analysis.py
+python studies/stability_study.py
+python studies/phase_portrait.py
+```
 
-### From tkinter, I have been able to create a window with sliders that can be moved for three variables, a calculate button that leads to a separate window, and a quit option. Ideally, I would like an entry box that is linked to the slider so someone coudl choose which to use since sliders can be difficult to operate at times. If using this package for the entire goal, I would need to store the slider values, solve the ODEs based off the values, and output a graph from the solutions. Finally, I could make the UI more appealing to the user. I believe the idea of linking the slider and the entry box is beyond the capabilities of this package or perhaps just beyond my knowledge at the moment. I would like to build something nice from tkinter to compare to another GUI. I believe I will have enough time to compare.
+---
 
-### From some exploration, PyQTGraph or PyQT may be the way to go with another framework to create the GUI.
+## Running the GUI
 
-### I have also seen plenty of publications that use 4th order Runge Kutta method.
+```
+python sir_gui.py
+```
 
-### My idea as of 7/5/23 is to create this for basic SIR model then, if time allows, extend to SEIR/SIRS/with deaths model as this seems a logical way to tackle this with the given time. 
+---
 
-## Questions
+## Testing
 
-### Who specifically within the term "healthcare professionals" will be utilizing this? When would they turn to this product? What exactly would they hope to gain from this product? Where would they gain access to this product? 
+```
+pytest tests/
+```
 
-## Next Steps
+---
 
-* ~~Lit review on SIR/SEIR/SIRS for flu/Covid-19 modeling.~~
-* ~~Investigate tkinter further~~
-* ~~Once I've decided on SIR/SEIR/SIRS find best numerical method to solve to reduce error~~
-* ~~Compile a list of pubs that use Runge Kutta method/any other method to solve SIR model~~
-* ~~Write a small script to solve simple SIR model with given parameters with 4th order Runge Kutta method~~
-* ~~Find a baseline example to check Runge-Kutta code~~
-* ~~Explore PyQTGraph~~
+## Requirements
+
+- Python 3.9+
+- NumPy
+- Matplotlib
+- PyTest
+
+Install with:
+
+```
+pip install -r requirements.txt
+```
+
+---
+
+## Engineering Highlights
+
+- Modular architecture
+- Separation of concerns
+- Type hints
+- Input validation
+- Numerical verification
+- Research-style reproducibility
+
+---
+
+## Applications
+
+- Epidemiological modeling
+- Dynamical systems research
+- Numerical methods verification
+- Scientific computing education
+- Parameter sensitivity analysis
