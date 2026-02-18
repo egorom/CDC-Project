@@ -1,229 +1,138 @@
-"""
-sir_gui.py
-----------
-
-Interactive epidemic modeling tool using SIR and SEIR models
-with optional demographic effects.
-
-Backend: RK4_models.py
-"""
-
 import tkinter as tk
 from tkinter import ttk, messagebox
 import numpy as np
 import matplotlib.pyplot as plt
 
-from RK4_models import solve_sir, solve_seir
+from core.rk4 import rk4
+from core.sir import SIRModel
+from core.seir import SEIRModel
 
 
-class EpidemicApp:
+class EpidemicGUI:
 
     def __init__(self, root):
+
         self.root = root
-        self.root.title("Epidemic Modeling Tool")
+        self.root.title("Epidemic Modeling Framework")
 
-        self._build_ui()
+        self._build_inputs()
+        self._build_buttons()
 
-    # ============================================================
-    # UI CONSTRUCTION
-    # ============================================================
+    # -------------------------------------------------
+    # UI Construction
+    # -------------------------------------------------
 
-    def _build_ui(self):
+    def _build_inputs(self):
 
-        main = ttk.Frame(self.root, padding=10)
-        main.pack(fill="both", expand=True)
+        frame = ttk.Frame(self.root, padding=10)
+        frame.grid(row=0, column=0)
 
-        # -------- Model Selection --------
-        model_frame = ttk.LabelFrame(main, text="Model Selection", padding=10)
-        model_frame.pack(fill="x", pady=5)
+        ttk.Label(frame, text="Model Type").grid(row=0, column=0)
+        self.model_type = ttk.Combobox(
+            frame, values=["SIR", "SEIR"], state="readonly"
+        )
+        self.model_type.set("SIR")
+        self.model_type.grid(row=0, column=1)
 
-        self.model_type = tk.StringVar(value="SIR")
-        ttk.Radiobutton(model_frame, text="SIR", variable=self.model_type,
-                        value="SIR").pack(side="left", padx=5)
-        ttk.Radiobutton(model_frame, text="SEIR", variable=self.model_type,
-                        value="SEIR").pack(side="left", padx=5)
-
-        self.use_demography = tk.BooleanVar()
-        ttk.Checkbutton(model_frame, text="Include Demography (μ)",
-                        variable=self.use_demography).pack(side="left", padx=10)
-
-        # -------- Parameters --------
-        param_frame = ttk.LabelFrame(main, text="Parameters", padding=10)
-        param_frame.pack(fill="x", pady=5)
-
+        labels = ["Beta", "Gamma", "Sigma (SEIR)", "Vaccination Rate"]
         self.entries = {}
 
-        params = [
-            ("β (Transmission)", "0.3"),
-            ("γ (Recovery)", "0.1"),
-            ("σ (Incubation, SEIR only)", "0.2"),
-            ("μ (Birth/Death rate)", "0.01"),
-            ("S₀", "0.99"),
-            ("E₀", "0.0"),
-            ("I₀", "0.01"),
-            ("R₀", "0.0"),
-            ("Simulation Time", "160"),
-            ("Time Step", "0.1")
-        ]
-
-        for label, default in params:
-            row = ttk.Frame(param_frame)
-            row.pack(fill="x", pady=2)
-            ttk.Label(row, text=label, width=30).pack(side="left")
-            entry = ttk.Entry(row)
-            entry.insert(0, default)
-            entry.pack(side="right", fill="x", expand=True)
+        for i, label in enumerate(labels):
+            ttk.Label(frame, text=label).grid(row=i+1, column=0)
+            entry = ttk.Entry(frame)
+            entry.insert(0, "0.1")
+            entry.grid(row=i+1, column=1)
             self.entries[label] = entry
 
-        # -------- Controls --------
-        control_frame = ttk.Frame(main)
-        control_frame.pack(pady=10)
+        ttk.Label(frame, text="Initial S").grid(row=5, column=0)
+        self.S0 = ttk.Entry(frame)
+        self.S0.insert(0, "999")
+        self.S0.grid(row=5, column=1)
 
-        ttk.Button(control_frame, text="Run Simulation",
-                   command=self.run_simulation).pack(side="left", padx=5)
+        ttk.Label(frame, text="Initial I").grid(row=6, column=0)
+        self.I0 = ttk.Entry(frame)
+        self.I0.insert(0, "1")
+        self.I0.grid(row=6, column=1)
 
-        ttk.Button(control_frame, text="Clear Plot",
-                   command=self.clear_plot).pack(side="left", padx=5)
+        ttk.Label(frame, text="Initial R").grid(row=7, column=0)
+        self.R0 = ttk.Entry(frame)
+        self.R0.insert(0, "0")
+        self.R0.grid(row=7, column=1)
 
-        # -------- Analysis Panel --------
-        self.analysis_label = ttk.Label(main, text="", justify="left")
-        self.analysis_label.pack(pady=5)
+    def _build_buttons(self):
 
-    # ============================================================
-    # SIMULATION LOGIC
-    # ============================================================
+        ttk.Button(self.root, text="Run Simulation",
+                   command=self.run_simulation).grid(row=1, column=0, pady=10)
+
+    # -------------------------------------------------
+    # Simulation
+    # -------------------------------------------------
 
     def run_simulation(self):
 
         try:
-            params = self._collect_inputs()
-        except ValueError as e:
-            messagebox.showerror("Input Error", str(e))
+            beta = float(self.entries["Beta"].get())
+            gamma = float(self.entries["Gamma"].get())
+            sigma = float(self.entries["Sigma (SEIR)"].get())
+            v = float(self.entries["Vaccination Rate"].get())
+
+            S0 = float(self.S0.get())
+            I0 = float(self.I0.get())
+            R0_val = float(self.R0.get())
+
+        except ValueError:
+            messagebox.showerror("Input Error", "All inputs must be numeric.")
             return
 
-        t = np.arange(0, params["T"], params["dt"])
+        t = np.linspace(0, 160, 2000)
 
         if self.model_type.get() == "SIR":
-            sol = solve_sir(
-                params["beta"],
-                params["gamma"],
-                params["S0"],
-                params["I0"],
-                params["R0"],
-                t,
-                mu=params["mu"] if self.use_demography.get() else None
-            )
-            S, I, R = sol.T
-            self._plot_results(t, S, I, R)
 
-            R0_value = self._compute_R0(
-                params["beta"],
-                params["gamma"],
-                params["mu"] if self.use_demography.get() else None
-            )
+            model = SIRModel(beta, gamma, v)
+            y0 = np.array([S0, I0, R0_val])
+            sol = rk4(model.rhs, y0, t)
 
-        else:  # SEIR
-            sol = solve_seir(
-                params["beta"],
-                params["gamma"],
-                params["sigma"],
-                params["S0"],
-                params["E0"],
-                params["I0"],
-                params["R0"],
-                t,
-                mu=params["mu"] if self.use_demography.get() else None
-            )
-            S, E, I, R = sol.T
-            self._plot_results(t, S, I, R, E)
+            self._plot_sir(t, sol, model.R0())
 
-            R0_value = self._compute_R0(
-                params["beta"],
-                params["gamma"],
-                params["mu"] if self.use_demography.get() else None
-            )
+        else:
 
-        self._update_analysis(t, I, R0_value)
+            model = SEIRModel(beta, gamma, sigma)
+            y0 = np.array([S0, 0, I0, R0_val])
+            sol = rk4(model.rhs, y0, t)
 
-    # ============================================================
-    # HELPERS
-    # ============================================================
+            self._plot_seir(t, sol)
 
-    def _collect_inputs(self):
+    # -------------------------------------------------
+    # Plotting
+    # -------------------------------------------------
 
-        beta = float(self.entries["β (Transmission)"].get())
-        gamma = float(self.entries["γ (Recovery)"].get())
-        sigma = float(self.entries["σ (Incubation, SEIR only)"].get())
-        mu = float(self.entries["μ (Birth/Death rate)"].get())
-        S0 = float(self.entries["S₀"].get())
-        E0 = float(self.entries["E₀"].get())
-        I0 = float(self.entries["I₀"].get())
-        R0 = float(self.entries["R₀"].get())
-        T = float(self.entries["Simulation Time"].get())
-        dt = float(self.entries["Time Step"].get())
-
-        if dt <= 0 or T <= 0:
-            raise ValueError("Simulation time and time step must be positive.")
-
-        return {
-            "beta": beta,
-            "gamma": gamma,
-            "sigma": sigma,
-            "mu": mu,
-            "S0": S0,
-            "E0": E0,
-            "I0": I0,
-            "R0": R0,
-            "T": T,
-            "dt": dt
-        }
-
-    def _compute_R0(self, beta, gamma, mu=None):
-        if mu is None:
-            return beta / gamma
-        return beta / (gamma + mu)
-
-    def _plot_results(self, t, S, I, R, E=None):
+    def _plot_sir(self, t, sol, R0):
 
         plt.figure()
-        plt.plot(t, S, label="Susceptible")
-        if E is not None:
-            plt.plot(t, E, label="Exposed")
-        plt.plot(t, I, label="Infected")
-        plt.plot(t, R, label="Recovered")
-
-        plt.xlabel("Time")
-        plt.ylabel("Population Fraction")
-        plt.title(f"{self.model_type.get()} Model Simulation")
+        plt.plot(t, sol[:, 0], label="S")
+        plt.plot(t, sol[:, 1], label="I")
+        plt.plot(t, sol[:, 2], label="R")
+        plt.title(f"SIR Model (R0 = {R0:.2f})")
         plt.legend()
-        plt.grid(True)
         plt.show()
 
-    def _update_analysis(self, t, I, R0_value):
+    def _plot_seir(self, t, sol):
 
-        peak_I = np.max(I)
-        peak_time = t[np.argmax(I)]
-        total_infected = np.trapz(I, t)
-
-        summary = (
-            f"Basic Reproduction Number (R₀): {R0_value:.3f}\n"
-            f"Peak Infection: {peak_I:.3f}\n"
-            f"Time of Peak: {peak_time:.2f}\n"
-            f"Total Infection Burden (AUC): {total_infected:.3f}"
-        )
-
-        self.analysis_label.config(text=summary)
-
-    def clear_plot(self):
-        plt.close("all")
-        self.analysis_label.config(text="")
+        plt.figure()
+        plt.plot(t, sol[:, 0], label="S")
+        plt.plot(t, sol[:, 1], label="E")
+        plt.plot(t, sol[:, 2], label="I")
+        plt.plot(t, sol[:, 3], label="R")
+        plt.title("SEIR Model")
+        plt.legend()
+        plt.show()
 
 
-# ============================================================
-# MAIN
-# ============================================================
+# -----------------------------------------------------
+# Main
+# -----------------------------------------------------
 
 if __name__ == "__main__":
     root = tk.Tk()
-    app = EpidemicApp(root)
+    app = EpidemicGUI(root)
     root.mainloop()
