@@ -1,340 +1,229 @@
-{
- "cells": [
-  {
-   "cell_type": "code",
-   "execution_count": 21,
-   "metadata": {},
-   "outputs": [
-    {
-     "name": "stderr",
-     "output_type": "stream",
-     "text": [
-      "/var/folders/_0/byd38rl15bbd4473dpf9v0bh0000gn/T/ipykernel_25208/3979850318.py:215: DeprecationWarning: `trapz` is deprecated. Use `trapezoid` instead, or one of the numerical integration functions in `scipy.integrate`.\n",
-      "  auc = np.trapz(i_array, t_array)  # Area under I(t)\n"
-     ]
-    },
-    {
-     "ename": "",
-     "evalue": "",
-     "output_type": "error",
-     "traceback": [
-      "\u001b[1;31mThe Kernel crashed while executing code in the the current cell or a previous cell. Please review the code in the cell(s) to identify a possible cause of the failure. Click <a href='https://aka.ms/vscodeJupyterKernelCrash'>here</a> for more info. View Jupyter <a href='command:jupyter.viewOutput'>log</a> for further details."
-     ]
-    }
-   ],
-   "source": [
-    "import tkinter as tk\n",
-    "from tkinter import ttk, messagebox, filedialog\n",
-    "import numpy as np\n",
-    "import matplotlib.pyplot as plt\n",
-    "from matplotlib.figure import Figure\n",
-    "from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk\n",
-    "from RK4_models import rk4_sir, rk4_sir_demog, rk4_seir, rk4_seir_demog\n",
-    "\n",
-    "class SIRModelApp:\n",
-    "    def __init__(self):\n",
-    "        self.root = tk.Tk()\n",
-    "        self.root.geometry(\"1400x900\")\n",
-    "        self.root.title(\"SIR Model for Infectious Diseases\")\n",
-    "\n",
-    "        self.widget = None\n",
-    "        self.toolbar = None\n",
-    "        self.plot_label = None\n",
-    "\n",
-    "        self._init_variables()\n",
-    "        self._init_frames()\n",
-    "        self._init_widgets()\n",
-    "\n",
-    "        self.root.mainloop()\n",
-    "\n",
-    "    def _init_variables(self):\n",
-    "        self.b = tk.DoubleVar(value=0.5)\n",
-    "        self.g = tk.DoubleVar(value=0.1)\n",
-    "        self.m = tk.DoubleVar(value=0.0)\n",
-    "        self.sig = tk.DoubleVar(value=0.1)\n",
-    "        self.days = tk.IntVar(value=30)\n",
-    "        self.sinitial = tk.DoubleVar(value=0.9)\n",
-    "        self.iinitial = tk.DoubleVar(value=0.1)\n",
-    "        self.einitial = tk.DoubleVar(value=0.0)\n",
-    "        self.statusmu = tk.IntVar(value=0)\n",
-    "        self.statuse = tk.IntVar(value=0)\n",
-    "        self.show_analysis = tk.IntVar(value=1)  # default to enabled\n",
-    "\n",
-    "\n",
-    "    def _init_frames(self):\n",
-    "        self.left_frame = tk.Frame(self.root, width=300)\n",
-    "        self.right_frame = tk.Frame(self.root)\n",
-    "        self.button_frame = tk.Frame(self.root)\n",
-    "\n",
-    "        self.left_frame.pack(side='left', fill='y', padx=10, pady=10)\n",
-    "        self.right_frame.pack(side='left', fill='both', expand=True, padx=10, pady=10)\n",
-    "        self.button_frame.pack(side='bottom', fill='x', pady=10)\n",
-    "\n",
-    "\n",
-    "    def _init_widgets(self):\n",
-    "        # Parameter presets dropdown\n",
-    "        preset_label = tk.Label(self.left_frame, text=\"Parameter Presets\")\n",
-    "        preset_label.pack()\n",
-    "        self.preset_combo = ttk.Combobox(self.left_frame, state=\"readonly\")\n",
-    "        self.preset_combo['values'] = [\"Custom\", \"Measles\", \"COVID-19\", \"Flu\"]\n",
-    "        self.preset_combo.current(0)\n",
-    "        self.preset_combo.pack()\n",
-    "        self.preset_combo.bind(\"<<ComboboxSelected>>\", self._load_preset)\n",
-    "\n",
-    "        analysis_check = tk.Checkbutton(self.left_frame, text=\"Show Analysis\", variable=self.show_analysis)\n",
-    "        analysis_check.pack(pady=5)\n",
-    "\n",
-    "\n",
-    "        # Sliders\n",
-    "        self.s_slider = self._create_slider(self.left_frame, 'β', self.b, 0, 2, 0.01, \"Transmission coefficient\")\n",
-    "        self.g_slider = self._create_slider(self.left_frame, 'γ', self.g, 0, 1, 0.01, \"Recovery rate\")\n",
-    "        self.m_slider = self._create_slider(self.left_frame, 'μ', self.m, 0, 0.5, 0.0001, \"Birth/death rate\", checkbutton=True, var=self.statusmu)\n",
-    "        self.sig_slider = self._create_slider(self.left_frame, 'σ', self.sig, 0, 1, 0.01, \"Latent period\")\n",
-    "        self.sinit_slider = self._create_slider(self.left_frame, 'S₀', self.sinitial, 0, 1, 0.01, \"Initial susceptible\")\n",
-    "        self.iinit_slider = self._create_slider(self.left_frame, 'I₀', self.iinitial, 0, 1, 0.01, \"Initial infected\")\n",
-    "        self.einit_slider = self._create_slider(self.left_frame, 'E₀', self.einitial, 0, 1, 0.01, \"Initial exposed\", checkbutton=True, var=self.statuse)\n",
-    "        self.days_slider = self._create_slider(self.left_frame, 'Days', self.days, 1, 100, 1, \"Simulation days\", is_integer=True)\n",
-    "\n",
-    "        # Buttons\n",
-    "        self.calc_button = tk.Button(self.button_frame, text='Calculate', command=self.solve, height=2, width=10)\n",
-    "        self.save_button = tk.Button(self.button_frame, text='Save Plot', command=self.save_plot, height=2, width=10)\n",
-    "        self.quit_button = tk.Button(self.button_frame, text='Quit', command=self.root.destroy)\n",
-    "        self.calc_button.pack(side='left', padx=5, pady=5)\n",
-    "        self.save_button.pack(side='left', padx=5, pady=5)\n",
-    "        self.quit_button.pack(side='left', padx=5, pady=5)\n",
-    "\n",
-    "        \n",
-    "\n",
-    "\n",
-    "    def _create_slider(self, parent, label, variable, frm, to, res, info, checkbutton=False, var=None, is_integer=False):\n",
-    "        frame = tk.Frame(parent)\n",
-    "        info_button = tk.Button(frame, text='?', command=lambda: messagebox.showinfo(f'{label} info', info))\n",
-    "        text_label = tk.Label(frame, text=label)\n",
-    "        slider = tk.Scale(frame, from_=frm, to=to, resolution=res, orient='horizontal', variable=variable)\n",
-    "        info_button.pack(side='left')\n",
-    "        text_label.pack(side='left')\n",
-    "        slider.pack(side='left')\n",
-    "        if checkbutton and var is not None:\n",
-    "            check = tk.Checkbutton(frame, text=f\"Enable {label}\", variable=var)\n",
-    "            check.pack(side='left')\n",
-    "        frame.pack(side='top')\n",
-    "        return slider\n",
-    "    \n",
-    "\n",
-    "\n",
-    "    def _load_preset(self, event=None):\n",
-    "        preset = self.preset_combo.get()\n",
-    "        if preset == \"Measles\":\n",
-    "            self.b.set(1.5)\n",
-    "            self.g.set(0.1)\n",
-    "            self.m.set(0.0)\n",
-    "            self.sig.set(0.2)\n",
-    "            self.sinitial.set(0.95)\n",
-    "            self.iinitial.set(0.05)\n",
-    "            self.einitial.set(0.0)\n",
-    "            self.statusmu.set(0)\n",
-    "            self.statuse.set(0)\n",
-    "            self.days.set(60)\n",
-    "        elif preset == \"COVID-19\":\n",
-    "            self.b.set(0.45)\n",
-    "            self.g.set(0.1)\n",
-    "            self.m.set(0.00003)\n",
-    "            self.sig.set(0.2)\n",
-    "            self.sinitial.set(0.989)\n",
-    "            self.iinitial.set(0.01)\n",
-    "            self.einitial.set(0.001)\n",
-    "            self.statusmu.set(1)\n",
-    "            self.statuse.set(1)\n",
-    "            self.days.set(100)\n",
-    "        elif preset == \"Flu\":\n",
-    "            self.b.set(0.3)\n",
-    "            self.g.set(0.2)\n",
-    "            self.m.set(0.00003)\n",
-    "            self.sig.set(0.33)\n",
-    "            self.sinitial.set(0.97)\n",
-    "            self.iinitial.set(0.02)\n",
-    "            self.einitial.set(0.005)\n",
-    "            self.statusmu.set(1)\n",
-    "            self.statuse.set(1)\n",
-    "            self.days.set(60)\n",
-    "        else:\n",
-    "            # Custom preset: do nothing\n",
-    "            pass\n",
-    "\n",
-    "    def solve(self):\n",
-    "        # Remove previous plot\n",
-    "        if self.widget:\n",
-    "            self.widget.destroy()\n",
-    "            self.widget = None\n",
-    "        if self.toolbar is not None:\n",
-    "            self.toolbar.destroy()\n",
-    "            self.toolbar = None\n",
-    "        if self.plot_label is not None:\n",
-    "            self.plot_label.destroy()\n",
-    "            self.plot_label = None\n",
-    "\n",
-    "        n = self.days.get()\n",
-    "        dt = 0.25 if n < 30 else 0.5 if n < 70 else 1\n",
-    "\n",
-    "        s0 = self.sinitial.get()\n",
-    "        i0 = self.iinitial.get()\n",
-    "        e0 = self.einitial.get() if self.statuse.get() else 0\n",
-    "\n",
-    "        total = s0 + i0 + e0\n",
-    "        if total > 1:\n",
-    "            messagebox.showerror(\"Input Error\", f\"S₀ + I₀ + E₀ = {total:.2f} > 1. Adjust sliders so total ≤ 1.\")\n",
-    "            return\n",
-    "        beta = self.b.get()\n",
-    "        gamma = self.g.get()\n",
-    "        mu = self.m.get()\n",
-    "        sigma = self.sig.get()\n",
-    "        statusmu = self.statusmu.get()\n",
-    "        statuse = self.statuse.get()\n",
-    "        r0 = 1 - s0 - i0 - e0\n",
-    "\n",
-    "        if r0 < 0:\n",
-    "            messagebox.showerror(\"Input Error\", \"Initial population percentages exceed 100%.\")\n",
-    "            return\n",
-    "\n",
-    "        fig = Figure(figsize=(7, 6), dpi=100)\n",
-    "        ax = fig.add_subplot(111)\n",
-    "        t = list(range(n + 1))\n",
-    "\n",
-    "        if statusmu and statuse:\n",
-    "            s, e, i, r = rk4_seir_demog(n, beta, gamma, mu, sigma, s0, e0, i0, r0, dt)\n",
-    "            ax.plot(t, s, 'r', label='Susceptible')\n",
-    "            ax.plot(t, e, 'k', label='Exposed')\n",
-    "            ax.plot(t, i, 'b', label='Infected')\n",
-    "            ax.plot(t, r, 'g', label='Recovered')\n",
-    "            label = 'SEIR with Demography'\n",
-    "            cumulative = np.cumsum(i)\n",
-    "        elif not statusmu and statuse:\n",
-    "            s, e, i, r = rk4_seir(n, beta, gamma, sigma, s0, e0, i0, r0, dt)\n",
-    "            ax.plot(t, s, 'r', label='Susceptible')\n",
-    "            ax.plot(t, e, 'k', label='Exposed')\n",
-    "            ax.plot(t, i, 'b', label='Infected')\n",
-    "            ax.plot(t, r, 'g', label='Recovered')\n",
-    "            label = 'SEIR without Demography'\n",
-    "            cumulative = np.cumsum(i)\n",
-    "        elif statusmu and not statuse:\n",
-    "            s, i, r = rk4_sir_demog(n, beta, gamma, mu, s0, i0, r0, dt)\n",
-    "            ax.plot(t, s, 'r', label='Susceptible')\n",
-    "            ax.plot(t, i, 'b', label='Infected')\n",
-    "            ax.plot(t, r, 'g', label='Recovered')\n",
-    "            label = 'SIR with Demography'\n",
-    "            cumulative = np.cumsum(i)\n",
-    "        else:\n",
-    "            s, i, r = rk4_sir(n, beta, gamma, s0, i0, r0, dt)\n",
-    "            ax.plot(t, s, 'r', label='Susceptible')\n",
-    "            ax.plot(t, i, 'b', label='Infected')\n",
-    "            ax.plot(t, r, 'g', label='Recovered')\n",
-    "            label = 'SIR without Demography'\n",
-    "            cumulative = np.cumsum(i)\n",
-    "\n",
-    "        i_array = np.array(i)\n",
-    "        t_array = np.array(t)\n",
-    "\n",
-    "        # Compute Phase 4 metrics\n",
-    "        peak_infection = np.max(i_array)\n",
-    "        peak_day = t_array[np.argmax(i_array)]\n",
-    "        auc = np.trapz(i_array, t_array)  # Area under I(t)\n",
-    "\n",
-    "        if gamma > 0:\n",
-    "            R0 = beta / gamma\n",
-    "        else:\n",
-    "            R0 = float('inf')\n",
-    "\n",
-    "        #        Prepare summary string\n",
-    "        if self.show_analysis.get():\n",
-    "            # Construct the summary text first\n",
-    "            summary_text = (\n",
-    "                f\"Effective R₀: {R0:.2f}\\n\"\n",
-    "                f\"Peak Infection: {peak_infection:.4f}\\n\"\n",
-    "                f\"Day of Peak: {peak_day}\\n\"\n",
-    "                f\"AUC of I(t): {auc:.4f}\"\n",
-    "            )\n",
-    "\n",
-    "            # Remove old analysis panel if it exists\n",
-    "            if hasattr(self, \"analysis_label\") and self.analysis_label.winfo_exists():\n",
-    "                self.analysis_label.destroy()\n",
-    "\n",
-    "            # Display analysis\n",
-    "            self.analysis_label = tk.Label(\n",
-    "             self.right_frame, text=summary_text,\n",
-    "                justify='left', font=(\"Arial\", 10), bg='lightgray', anchor='w'\n",
-    "            )\n",
-    "            self.analysis_label.pack(fill='x', padx=10, pady=5)\n",
-    "\n",
-    "\n",
-    "        # Plot cumulative infections as dashed line on secondary y-axis\n",
-    "        ax2 = ax.twinx()\n",
-    "        ax2.plot(t, cumulative, 'm--', label='Cumulative Infected')\n",
-    "        ax2.set_ylabel('Cumulative Infections', color='m')\n",
-    "        ax2.tick_params(axis='y', colors='m')\n",
-    "\n",
-    "        ax.set_title(label)\n",
-    "        ax.set_xlabel(\"Days\")\n",
-    "        ax.set_ylabel(\"Population Fraction\")\n",
-    "        ax.legend(loc='upper left')\n",
-    "        ax2.legend(loc='upper right')\n",
-    "\n",
-    "        self.plot_label = tk.Label(self.right_frame, text=label)\n",
-    "        self.plot_label.pack()\n",
-    "\n",
-    "        # Remove old analysis panel if it exists\n",
-    "        if hasattr(self, \"analysis_label\") and self.analysis_label.winfo_exists():\n",
-    "            self.analysis_label.destroy()\n",
-    "\n",
-    "        # Display analysis\n",
-    "        self.analysis_label = tk.Label(self.right_frame, text=summary_text, justify='left', font=(\"Arial\", 10), bg='lightgray', anchor='w')\n",
-    "        self.analysis_label.pack(fill='x', padx=10, pady=5)\n",
-    "\n",
-    "\n",
-    "        canvas = FigureCanvasTkAgg(fig, master=self.right_frame)\n",
-    "        self.toolbar = NavigationToolbar2Tk(canvas, self.right_frame)\n",
-    "        self.toolbar.update()\n",
-    "        self.widget = canvas.get_tk_widget()\n",
-    "\n",
-    "        canvas.draw()\n",
-    "        self.widget.pack()\n",
-    "\n",
-    "        # Save fig reference for saving later\n",
-    "        self.fig = fig\n",
-    "\n",
-    "    def save_plot(self):\n",
-    "        if hasattr(self, \"fig\"):\n",
-    "            file_path = filedialog.asksaveasfilename(defaultextension=\".png\",\n",
-    "                                                     filetypes=[(\"PNG files\", \"*.png\"), (\"All files\", \"*.*\")])\n",
-    "            if file_path:\n",
-    "                self.fig.savefig(file_path)\n",
-    "                messagebox.showinfo(\"Save Plot\", f\"Plot saved to {file_path}\")\n",
-    "        else:\n",
-    "            messagebox.showwarning(\"Save Plot\", \"No plot to save. Please run a simulation first.\")\n",
-    "\n",
-    "if __name__ == '__main__':\n",
-    "    app = SIRModelApp()\n"
-   ]
-  }
- ],
- "metadata": {
-  "kernelspec": {
-   "display_name": "Python 3",
-   "language": "python",
-   "name": "python3"
-  },
-  "language_info": {
-   "codemirror_mode": {
-    "name": "ipython",
-    "version": 3
-   },
-   "file_extension": ".py",
-   "mimetype": "text/x-python",
-   "name": "python",
-   "nbconvert_exporter": "python",
-   "pygments_lexer": "ipython3",
-   "version": "3.13.5"
-  }
- },
- "nbformat": 4,
- "nbformat_minor": 2
-}
+"""
+sir_gui.py
+----------
+
+Interactive epidemic modeling tool using SIR and SEIR models
+with optional demographic effects.
+
+Backend: RK4_models.py
+"""
+
+import tkinter as tk
+from tkinter import ttk, messagebox
+import numpy as np
+import matplotlib.pyplot as plt
+
+from RK4_models import solve_sir, solve_seir
+
+
+class EpidemicApp:
+
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Epidemic Modeling Tool")
+
+        self._build_ui()
+
+    # ============================================================
+    # UI CONSTRUCTION
+    # ============================================================
+
+    def _build_ui(self):
+
+        main = ttk.Frame(self.root, padding=10)
+        main.pack(fill="both", expand=True)
+
+        # -------- Model Selection --------
+        model_frame = ttk.LabelFrame(main, text="Model Selection", padding=10)
+        model_frame.pack(fill="x", pady=5)
+
+        self.model_type = tk.StringVar(value="SIR")
+        ttk.Radiobutton(model_frame, text="SIR", variable=self.model_type,
+                        value="SIR").pack(side="left", padx=5)
+        ttk.Radiobutton(model_frame, text="SEIR", variable=self.model_type,
+                        value="SEIR").pack(side="left", padx=5)
+
+        self.use_demography = tk.BooleanVar()
+        ttk.Checkbutton(model_frame, text="Include Demography (μ)",
+                        variable=self.use_demography).pack(side="left", padx=10)
+
+        # -------- Parameters --------
+        param_frame = ttk.LabelFrame(main, text="Parameters", padding=10)
+        param_frame.pack(fill="x", pady=5)
+
+        self.entries = {}
+
+        params = [
+            ("β (Transmission)", "0.3"),
+            ("γ (Recovery)", "0.1"),
+            ("σ (Incubation, SEIR only)", "0.2"),
+            ("μ (Birth/Death rate)", "0.01"),
+            ("S₀", "0.99"),
+            ("E₀", "0.0"),
+            ("I₀", "0.01"),
+            ("R₀", "0.0"),
+            ("Simulation Time", "160"),
+            ("Time Step", "0.1")
+        ]
+
+        for label, default in params:
+            row = ttk.Frame(param_frame)
+            row.pack(fill="x", pady=2)
+            ttk.Label(row, text=label, width=30).pack(side="left")
+            entry = ttk.Entry(row)
+            entry.insert(0, default)
+            entry.pack(side="right", fill="x", expand=True)
+            self.entries[label] = entry
+
+        # -------- Controls --------
+        control_frame = ttk.Frame(main)
+        control_frame.pack(pady=10)
+
+        ttk.Button(control_frame, text="Run Simulation",
+                   command=self.run_simulation).pack(side="left", padx=5)
+
+        ttk.Button(control_frame, text="Clear Plot",
+                   command=self.clear_plot).pack(side="left", padx=5)
+
+        # -------- Analysis Panel --------
+        self.analysis_label = ttk.Label(main, text="", justify="left")
+        self.analysis_label.pack(pady=5)
+
+    # ============================================================
+    # SIMULATION LOGIC
+    # ============================================================
+
+    def run_simulation(self):
+
+        try:
+            params = self._collect_inputs()
+        except ValueError as e:
+            messagebox.showerror("Input Error", str(e))
+            return
+
+        t = np.arange(0, params["T"], params["dt"])
+
+        if self.model_type.get() == "SIR":
+            sol = solve_sir(
+                params["beta"],
+                params["gamma"],
+                params["S0"],
+                params["I0"],
+                params["R0"],
+                t,
+                mu=params["mu"] if self.use_demography.get() else None
+            )
+            S, I, R = sol.T
+            self._plot_results(t, S, I, R)
+
+            R0_value = self._compute_R0(
+                params["beta"],
+                params["gamma"],
+                params["mu"] if self.use_demography.get() else None
+            )
+
+        else:  # SEIR
+            sol = solve_seir(
+                params["beta"],
+                params["gamma"],
+                params["sigma"],
+                params["S0"],
+                params["E0"],
+                params["I0"],
+                params["R0"],
+                t,
+                mu=params["mu"] if self.use_demography.get() else None
+            )
+            S, E, I, R = sol.T
+            self._plot_results(t, S, I, R, E)
+
+            R0_value = self._compute_R0(
+                params["beta"],
+                params["gamma"],
+                params["mu"] if self.use_demography.get() else None
+            )
+
+        self._update_analysis(t, I, R0_value)
+
+    # ============================================================
+    # HELPERS
+    # ============================================================
+
+    def _collect_inputs(self):
+
+        beta = float(self.entries["β (Transmission)"].get())
+        gamma = float(self.entries["γ (Recovery)"].get())
+        sigma = float(self.entries["σ (Incubation, SEIR only)"].get())
+        mu = float(self.entries["μ (Birth/Death rate)"].get())
+        S0 = float(self.entries["S₀"].get())
+        E0 = float(self.entries["E₀"].get())
+        I0 = float(self.entries["I₀"].get())
+        R0 = float(self.entries["R₀"].get())
+        T = float(self.entries["Simulation Time"].get())
+        dt = float(self.entries["Time Step"].get())
+
+        if dt <= 0 or T <= 0:
+            raise ValueError("Simulation time and time step must be positive.")
+
+        return {
+            "beta": beta,
+            "gamma": gamma,
+            "sigma": sigma,
+            "mu": mu,
+            "S0": S0,
+            "E0": E0,
+            "I0": I0,
+            "R0": R0,
+            "T": T,
+            "dt": dt
+        }
+
+    def _compute_R0(self, beta, gamma, mu=None):
+        if mu is None:
+            return beta / gamma
+        return beta / (gamma + mu)
+
+    def _plot_results(self, t, S, I, R, E=None):
+
+        plt.figure()
+        plt.plot(t, S, label="Susceptible")
+        if E is not None:
+            plt.plot(t, E, label="Exposed")
+        plt.plot(t, I, label="Infected")
+        plt.plot(t, R, label="Recovered")
+
+        plt.xlabel("Time")
+        plt.ylabel("Population Fraction")
+        plt.title(f"{self.model_type.get()} Model Simulation")
+        plt.legend()
+        plt.grid(True)
+        plt.show()
+
+    def _update_analysis(self, t, I, R0_value):
+
+        peak_I = np.max(I)
+        peak_time = t[np.argmax(I)]
+        total_infected = np.trapz(I, t)
+
+        summary = (
+            f"Basic Reproduction Number (R₀): {R0_value:.3f}\n"
+            f"Peak Infection: {peak_I:.3f}\n"
+            f"Time of Peak: {peak_time:.2f}\n"
+            f"Total Infection Burden (AUC): {total_infected:.3f}"
+        )
+
+        self.analysis_label.config(text=summary)
+
+    def clear_plot(self):
+        plt.close("all")
+        self.analysis_label.config(text="")
+
+
+# ============================================================
+# MAIN
+# ============================================================
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = EpidemicApp(root)
+    root.mainloop()
