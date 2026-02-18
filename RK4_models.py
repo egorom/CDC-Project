@@ -1,97 +1,175 @@
-# rk4_models.py
+"""
+RK4_models.py
+-------------
 
-def rk4_sir(n, beta, gamma, s0, i0, r0, dt):
-    def dsdt(s, i): return -beta * s * i
-    def didt(s, i): return beta * s * i - gamma * i
+Modular Runge–Kutta (4th order) solvers for compartmental epidemic models.
 
-    S, I, R = [s0], [i0], [r0]
-    for i in range(n):
-        s, i_ = S[-1], I[-1]
+Implements:
+    - SIR
+    - SIR with demography
+    - SEIR
+    - SEIR with demography
 
-        sk1, ik1 = dsdt(s, i_), didt(s, i_)
-        sk2, ik2 = dsdt(s + dt/2*sk1, i_ + dt/2*ik1), didt(s + dt/2*sk1, i_ + dt/2*ik1)
-        sk3, ik3 = dsdt(s + dt/2*sk2, i_ + dt/2*ik2), didt(s + dt/2*sk2, i_ + dt/2*ik2)
-        sk4, ik4 = dsdt(s + dt*sk3, i_ + dt*ik3), didt(s + dt*sk3, i_ + dt*ik3)
+All models assume normalized population (S + I + R = 1, etc.).
+"""
 
-        S.append(s + dt/6*(sk1 + 2*sk2 + 2*sk3 + sk4))
-        I.append(i_ + dt/6*(ik1 + 2*ik2 + 2*ik3 + ik4))
-        R.append(1 - S[-1] - I[-1])
+import numpy as np
 
-    return S, I, R
 
-def rk4_sir_demog(n, beta, gamma, mu, s0, i0, r0, dt):
-    def dsdt(s, i): return mu - beta * s * i - mu * s
-    def didt(s, i): return beta * s * i - gamma * i - mu * i
+# ============================================================
+# Generic RK4 Integrator
+# ============================================================
 
-    S, I, R = [s0], [i0], [r0]
-    for i in range(n):
-        s, i_ = S[-1], I[-1]
+def rk4_system(f, y0, t, params):
+    """
+    Generic 4th-order Runge-Kutta integrator for systems of ODEs.
 
-        sk1, ik1 = dsdt(s, i_), didt(s, i_)
-        sk2, ik2 = dsdt(s + dt/2*sk1, i_ + dt/2*ik1), didt(s + dt/2*sk1, i_ + dt/2*ik1)
-        sk3, ik3 = dsdt(s + dt/2*sk2, i_ + dt/2*ik2), didt(s + dt/2*sk2, i_ + dt/2*ik2)
-        sk4, ik4 = dsdt(s + dt*sk3, i_ + dt*ik3), didt(s + dt*sk3, i_ + dt*ik3)
+    Parameters
+    ----------
+    f : function
+        Function defining system dy/dt = f(y, t, params)
+    y0 : array_like
+        Initial condition vector
+    t : array_like
+        Time grid
+    params : dict
+        Model parameters
 
-        S.append(s + dt/6*(sk1 + 2*sk2 + 2*sk3 + sk4))
-        I.append(i_ + dt/6*(ik1 + 2*ik2 + 2*ik3 + ik4))
-        R.append(1 - S[-1] - I[-1])
+    Returns
+    -------
+    y : ndarray
+        Solution array of shape (len(t), len(y0))
+    """
 
-    return S, I, R
+    y0 = np.asarray(y0, dtype=float)
+    y = np.zeros((len(t), len(y0)))
+    y[0] = y0
 
-def rk4_seir(n, beta, gamma, sigma, s0, e0, i0, r0, dt):
-    def dsdt(s, i): return -beta * s * i
-    def dedt(s, e, i): return beta * s * i - sigma * e
-    def didt(e, i): return sigma * e - gamma * i
+    dt = t[1] - t[0]
 
-    S, E, I, R = [s0], [e0], [i0], [r0]
-    for _ in range(n):
-        s, e, i_ = S[-1], E[-1], I[-1]
+    for n in range(len(t) - 1):
+        k1 = f(y[n], t[n], params)
+        k2 = f(y[n] + 0.5 * dt * k1, t[n] + 0.5 * dt, params)
+        k3 = f(y[n] + 0.5 * dt * k2, t[n] + 0.5 * dt, params)
+        k4 = f(y[n] + dt * k3, t[n] + dt, params)
 
-        sk1, ek1, ik1 = dsdt(s, i_), dedt(s, e, i_), didt(e, i_)
-        sk2 = dsdt(s + dt/2*sk1, i_ + dt/2*ik1)
-        ek2 = dedt(s + dt/2*sk1, e + dt/2*ek1, i_ + dt/2*ik1)
-        ik2 = didt(e + dt/2*ek1, i_ + dt/2*ik1)
+        y[n + 1] = y[n] + (dt / 6.0) * (k1 + 2*k2 + 2*k3 + k4)
 
-        sk3 = dsdt(s + dt/2*sk2, i_ + dt/2*ik2)
-        ek3 = dedt(s + dt/2*sk2, e + dt/2*ek2, i_ + dt/2*ik2)
-        ik3 = didt(e + dt/2*ek2, i_ + dt/2*ik2)
+    return y
 
-        sk4 = dsdt(s + dt*sk3, i_ + dt*ik3)
-        ek4 = dedt(s + dt*sk3, e + dt*ek3, i_ + dt*ik3)
-        ik4 = didt(e + dt*ek3, i_ + dt*ik3)
 
-        S.append(s + dt/6*(sk1 + 2*sk2 + 2*sk3 + sk4))
-        E.append(e + dt/6*(ek1 + 2*ek2 + 2*ek3 + ek4))
-        I.append(i_ + dt/6*(ik1 + 2*ik2 + 2*ik3 + ik4))
-        R.append(1 - S[-1] - E[-1] - I[-1])
+# ============================================================
+# SIR Models
+# ============================================================
 
-    return S, E, I, R
+def sir_rhs(y, t, params):
+    """
+    Right-hand side of classic SIR model.
+    """
+    S, I, R = y
+    beta = params["beta"]
+    gamma = params["gamma"]
 
-def rk4_seir_demog(n, beta, gamma, mu, sigma, s0, e0, i0, r0, dt):
-    def dsdt(s, i): return mu - (beta * i + mu) * s
-    def dedt(s, e, i): return beta * s * i - (mu + sigma) * e
-    def didt(e, i): return sigma * e - (mu + gamma) * i
+    dS = -beta * S * I
+    dI = beta * S * I - gamma * I
+    dR = gamma * I
 
-    S, E, I, R = [s0], [e0], [i0], [r0]
-    for _ in range(n):
-        s, e, i_ = S[-1], E[-1], I[-1]
+    return np.array([dS, dI, dR])
 
-        sk1, ek1, ik1 = dsdt(s, i_), dedt(s, e, i_), didt(e, i_)
-        sk2 = dsdt(s + dt/2*sk1, i_ + dt/2*ik1)
-        ek2 = dedt(s + dt/2*sk1, e + dt/2*ek1, i_ + dt/2*ik1)
-        ik2 = didt(e + dt/2*ek1, i_ + dt/2*ik1)
 
-        sk3 = dsdt(s + dt/2*sk2, i_ + dt/2*ik2)
-        ek3 = dedt(s + dt/2*sk2, e + dt/2*ek2, i_ + dt/2*ik2)
-        ik3 = didt(e + dt/2*ek2, i_ + dt/2*ik2)
+def sir_demography_rhs(y, t, params):
+    """
+    SIR model with vital dynamics (birth/death rate mu).
+    """
+    S, I, R = y
+    beta = params["beta"]
+    gamma = params["gamma"]
+    mu = params["mu"]
 
-        sk4 = dsdt(s + dt*sk3, i_ + dt*ik3)
-        ek4 = dedt(s + dt*sk3, e + dt*ek3, i_ + dt*ik3)
-        ik4 = didt(e + dt*ek3, i_ + dt*ik3)
+    dS = mu - beta * S * I - mu * S
+    dI = beta * S * I - gamma * I - mu * I
+    dR = gamma * I - mu * R
 
-        S.append(s + dt/6*(sk1 + 2*sk2 + 2*sk3 + sk4))
-        E.append(e + dt/6*(ek1 + 2*ek2 + 2*ek3 + ek4))
-        I.append(i_ + dt/6*(ik1 + 2*ik2 + 2*ik3 + ik4))
-        R.append(1 - S[-1] - E[-1] - I[-1])
+    return np.array([dS, dI, dR])
 
-    return S, E, I, R
+
+def solve_sir(beta, gamma, S0, I0, R0, t, mu=None):
+    """
+    Solve SIR model (with optional demography).
+    """
+
+    y0 = [S0, I0, R0]
+
+    params = {
+        "beta": beta,
+        "gamma": gamma
+    }
+
+    if mu is not None:
+        params["mu"] = mu
+        sol = rk4_system(sir_demography_rhs, y0, t, params)
+    else:
+        sol = rk4_system(sir_rhs, y0, t, params)
+
+    return sol
+
+
+# ============================================================
+# SEIR Models
+# ============================================================
+
+def seir_rhs(y, t, params):
+    """
+    Classic SEIR model (no demography).
+    """
+    S, E, I, R = y
+    beta = params["beta"]
+    gamma = params["gamma"]
+    sigma = params["sigma"]
+
+    dS = -beta * S * I
+    dE = beta * S * I - sigma * E
+    dI = sigma * E - gamma * I
+    dR = gamma * I
+
+    return np.array([dS, dE, dI, dR])
+
+
+def seir_demography_rhs(y, t, params):
+    """
+    SEIR model with vital dynamics.
+    """
+    S, E, I, R = y
+    beta = params["beta"]
+    gamma = params["gamma"]
+    sigma = params["sigma"]
+    mu = params["mu"]
+
+    dS = mu - beta * S * I - mu * S
+    dE = beta * S * I - sigma * E - mu * E
+    dI = sigma * E - gamma * I - mu * I
+    dR = gamma * I - mu * R
+
+    return np.array([dS, dE, dI, dR])
+
+
+def solve_seir(beta, gamma, sigma, S0, E0, I0, R0, t, mu=None):
+    """
+    Solve SEIR model (with optional demography).
+    """
+
+    y0 = [S0, E0, I0, R0]
+
+    params = {
+        "beta": beta,
+        "gamma": gamma,
+        "sigma": sigma
+    }
+
+    if mu is not None:
+        params["mu"] = mu
+        sol = rk4_system(seir_demography_rhs, y0, t, params)
+    else:
+        sol = rk4_system(seir_rhs, y0, t, params)
+
+    return sol
